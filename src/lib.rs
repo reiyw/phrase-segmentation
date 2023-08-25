@@ -1,30 +1,37 @@
 #![allow(dead_code)]
 
+use ouroboros::self_referencing;
 use suffix_array::SuffixArray;
 
-struct Document<'a> {
-    tokens: &'a [u16],
-    sa: SuffixArray<'a>,
+#[self_referencing]
+struct Document {
+    tokens: Vec<u16>,
+    #[borrows(tokens)]
+    #[covariant]
+    sa: SuffixArray<'this>,
 }
 
-impl<'a> Document<'a> {
-    pub fn new(tokens: &'a [u16]) -> Self {
-        let sa = unsafe { SuffixArray::new(tokens.align_to::<u8>().1) };
-        Self { tokens, sa }
+impl Document {
+    pub fn from_tokens(tokens: Vec<u16>) -> Self {
+        DocumentBuilder {
+            tokens,
+            sa_builder: |tokens: &Vec<u16>| unsafe { SuffixArray::new(tokens.align_to::<u8>().1) },
+        }
+        .build()
     }
 
     /// Tests if it contains the given pattern.
     pub fn contains(&self, pat: &[u16]) -> bool {
         let pat_u8 = unsafe { pat.align_to::<u8>().1 };
-        self.sa.contains(pat_u8)
+        self.borrow_sa().contains(pat_u8)
     }
 
     pub fn get_slice(&self, start: usize, end: usize) -> &[u16] {
-        &self.tokens[start..end]
+        &self.borrow_tokens()[start..end]
     }
 }
 
-pub fn collect_phrases<'a, I: Iterator<Item = (Document<'a>, [Document<'a>])>>(document_set: I) {}
+// pub fn collect_phrases<'a, I: Iterator<Item = (Document<'a>, [Document<'a>])>>(document_set: I) {}
 
 #[cfg(test)]
 mod test {
@@ -32,8 +39,7 @@ mod test {
 
     #[test]
     fn test_contains() {
-        let tokens = [0, 255, 256, 65535];
-        let doc = Document::new(&tokens);
+        let doc = Document::from_tokens(vec![0, 255, 256, 65535]);
 
         let pat = [0];
         assert!(doc.contains(&pat));
@@ -66,8 +72,7 @@ mod test {
 
     #[test]
     fn test_get_slice() {
-        let tokens = [0, 1, 2];
-        let doc = Document::new(&tokens);
+        let doc = Document::from_tokens(vec![0, 1, 2]);
         assert_eq!(doc.get_slice(0, 1), &[0]);
         assert_eq!(doc.get_slice(0, 2), &[0, 1]);
         assert_eq!(doc.get_slice(0, 3), &[0, 1, 2]);
@@ -79,6 +84,6 @@ mod test {
     #[test]
     fn test_collect_phrases() {
         let tokens = [0, 1, 2];
-        let doc = Document::new(&tokens);
+        // let doc = Document::new(&tokens);
     }
 }

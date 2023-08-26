@@ -16,6 +16,10 @@ pub fn collect_phrases<'a, I: Iterator<Item = (&'a IndexedDocument, &'a [Indexed
         let mut start = 0;
         while start < document.len() {
             let mut query_len = min_phrase_len;
+            if start + query_len > document.len() {
+                break;
+            }
+
             let mut query = document.get_slice(start, start + query_len);
             let mut found = false;
             'outer: for relevant_document in relevant_documents {

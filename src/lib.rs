@@ -6,7 +6,7 @@ use std::collections::BTreeSet;
 
 pub use crate::document::IndexedDocument;
 
-pub fn collect_phrases<'a, I: Iterator<Item = (&'a IndexedDocument, &'a [IndexedDocument])>>(
+pub fn collect_phrases<'a, I: Iterator<Item = (&'a IndexedDocument, Vec<&'a IndexedDocument>)>>(
     document_set: I,
     min_phrase_len: usize,
     max_phrase_len: usize,
@@ -22,7 +22,7 @@ pub fn collect_phrases<'a, I: Iterator<Item = (&'a IndexedDocument, &'a [Indexed
 
             let mut query = document.get_slice(start, start + query_len);
             let mut found = false;
-            'outer: for relevant_document in relevant_documents {
+            'outer: for relevant_document in &relevant_documents {
                 while relevant_document.contains(query) {
                     found = true;
 
@@ -63,8 +63,8 @@ mod test {
             IndexedDocument::from_tokens(vec![4, 5, 6, 7]),
         ];
         let document_set = vec![
-            (&doc1, doc1_relevant_docs.as_slice()),
-            (&doc2, doc2_relevant_docs.as_slice()),
+            (&doc1, doc1_relevant_docs.iter().collect::<Vec<_>>()),
+            (&doc2, doc2_relevant_docs.iter().collect::<Vec<_>>()),
         ];
         let mut phrases = collect_phrases(document_set.into_iter(), 2, 100);
         assert_eq!(phrases.pop_first().unwrap(), &[0, 1]);

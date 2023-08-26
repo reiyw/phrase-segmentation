@@ -6,12 +6,11 @@ use clap::Parser;
 use phrase_segmentation::collect_phrases;
 use phrase_segmentation::IndexedDocument;
 use serde::Deserialize;
-use serde_jsonlines::json_lines;
 
 #[derive(Debug, Deserialize)]
 struct DocumentSet {
-    document: Vec<u16>,
-    relevant_documents: Vec<Vec<u16>>,
+    documents: Vec<Vec<u16>>,
+    relevant_document_ids: Vec<Vec<usize>>,
 }
 
 #[derive(Parser)]
@@ -33,21 +32,23 @@ struct Cli {
 fn main() -> Result<()> {
     let cli = Cli::parse();
 
-    let document_set = json_lines(&cli.input_path)?.collect::<Result<Vec<DocumentSet>>>()?;
-    let document_set: Vec<(IndexedDocument, Vec<IndexedDocument>)> = document_set
-        .into_iter()
-        .map(|d| {
-            (
-                IndexedDocument::from_tokens(d.document),
-                d.relevant_documents
-                    .into_iter()
-                    .map(|d| IndexedDocument::from_tokens(d))
-                    .collect::<Vec<IndexedDocument>>(),
-            )
+    let document_set: DocumentSet = serde_json::from_reader(File::open(&cli.input_path)?)?;
+    let indexed_documents: Vec<_> = document_set
+        .documents
+        .iter()
+        .map(|d| IndexedDocument::from_tokens(d.clone()))
+        .collect();
+    let relevant_documents: Vec<Vec<&IndexedDocument>> = document_set
+        .relevant_document_ids
+        .iter()
+        .map(|ids| {
+            ids.iter()
+                .map(|i| &indexed_documents[*i])
+                .collect::<Vec<&IndexedDocument>>()
         })
         .collect();
     let phrases = collect_phrases(
-        document_set.iter().map(|(d, r)| (d, r.as_slice())),
+        indexed_documents.iter().zip(relevant_documents),
         cli.min_phrase_len,
         cli.max_phrase_len,
     );

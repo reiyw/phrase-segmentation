@@ -4,16 +4,16 @@ use ouroboros::self_referencing;
 use suffix_array::SuffixArray;
 
 #[self_referencing]
-pub struct Document {
+pub struct IndexedDocument {
     tokens: Vec<u16>,
     #[borrows(tokens)]
     #[covariant]
     sa: SuffixArray<'this>,
 }
 
-impl Document {
+impl IndexedDocument {
     pub fn from_tokens(tokens: Vec<u16>) -> Self {
-        DocumentBuilder {
+        IndexedDocumentBuilder {
             tokens,
             sa_builder: |tokens: &Vec<u16>| unsafe { SuffixArray::new(tokens.align_to::<u8>().1) },
         }
@@ -45,7 +45,7 @@ mod test {
 
     #[test]
     fn test_contains() {
-        let doc = Document::from_tokens(vec![0, 255, 256, 65535]);
+        let doc = IndexedDocument::from_tokens(vec![0, 255, 256, 65535]);
 
         let pat = [0];
         assert!(doc.contains(&pat));
@@ -78,7 +78,7 @@ mod test {
 
     #[test]
     fn test_get_slice() {
-        let doc = Document::from_tokens(vec![0, 1, 2]);
+        let doc = IndexedDocument::from_tokens(vec![0, 1, 2]);
         assert_eq!(doc.get_slice(0, 1), &[0]);
         assert_eq!(doc.get_slice(0, 2), &[0, 1]);
         assert_eq!(doc.get_slice(0, 3), &[0, 1, 2]);

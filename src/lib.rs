@@ -4,9 +4,9 @@ mod document;
 
 use std::collections::BTreeSet;
 
-pub use crate::document::Document;
+pub use crate::document::IndexedDocument;
 
-pub fn collect_phrases<'a, I: Iterator<Item = (&'a Document, &'a [Document])>>(
+pub fn collect_phrases<'a, I: Iterator<Item = (&'a IndexedDocument, &'a [IndexedDocument])>>(
     document_set: I,
     min_phrase_len: usize,
     max_phrase_len: usize,
@@ -48,15 +48,15 @@ mod test {
 
     #[test]
     fn test_collect_phrases() {
-        let doc1 = Document::from_tokens(vec![0, 1, 2, 3]);
+        let doc1 = IndexedDocument::from_tokens(vec![0, 1, 2, 3]);
         let doc1_relevant_docs = vec![
-            Document::from_tokens(vec![0, 0, 1, 1]),
-            Document::from_tokens(vec![0, 2, 3, 3]),
+            IndexedDocument::from_tokens(vec![0, 0, 1, 1]),
+            IndexedDocument::from_tokens(vec![0, 2, 3, 3]),
         ];
-        let doc2 = Document::from_tokens(vec![4, 5, 6, 7]);
+        let doc2 = IndexedDocument::from_tokens(vec![4, 5, 6, 7]);
         let doc2_relevant_docs = vec![
-            Document::from_tokens(vec![5, 6, 7, 8]),
-            Document::from_tokens(vec![4, 5, 6, 7]),
+            IndexedDocument::from_tokens(vec![5, 6, 7, 8]),
+            IndexedDocument::from_tokens(vec![4, 5, 6, 7]),
         ];
         let document_set = vec![
             (&doc1, doc1_relevant_docs.as_slice()),

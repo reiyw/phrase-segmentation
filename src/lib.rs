@@ -2,8 +2,6 @@
 
 mod document;
 
-use std::sync::Mutex;
-
 use rayon::prelude::*;
 
 pub use crate::document::IndexedDocument;
@@ -13,20 +11,18 @@ pub fn collect_phrases<'a>(
     min_phrase_len: usize,
     max_phrase_len: usize,
 ) -> Vec<Vec<(usize, usize)>> {
-    let phrases = Mutex::new(Vec::new());
-    document_set
+    let phrases = document_set
         .par_iter()
-        .for_each(|(document, relevant_documents)| {
-            let doc_phrases = collect_phrases_per_document(
+        .map(|(document, relevant_documents)| {
+            collect_phrases_per_document(
                 document,
                 relevant_documents,
                 min_phrase_len,
                 max_phrase_len,
-            );
-            let mut lock = phrases.lock().unwrap();
-            lock.push(doc_phrases);
-        });
-    phrases.into_inner().unwrap()
+            )
+        })
+        .collect();
+    phrases
 }
 
 fn collect_phrases_per_document<'a>(

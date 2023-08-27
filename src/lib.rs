@@ -2,7 +2,6 @@
 
 mod document;
 
-use std::collections::BTreeSet;
 use std::sync::Mutex;
 
 use rayon::prelude::*;
@@ -13,8 +12,8 @@ pub fn collect_phrases<'a>(
     document_set: &'a [(&'a IndexedDocument, Vec<&'a IndexedDocument>)],
     min_phrase_len: usize,
     max_phrase_len: usize,
-) -> BTreeSet<&'a [u16]> {
-    let phrases = Mutex::new(BTreeSet::new());
+) -> Vec<Vec<(usize, usize)>> {
+    let phrases = Mutex::new(Vec::new());
     document_set
         .par_iter()
         .for_each(|(document, relevant_documents)| {
@@ -25,7 +24,7 @@ pub fn collect_phrases<'a>(
                 max_phrase_len,
             );
             let mut lock = phrases.lock().unwrap();
-            lock.extend(doc_phrases);
+            lock.push(doc_phrases);
         });
     phrases.into_inner().unwrap()
 }
@@ -35,8 +34,8 @@ fn collect_phrases_per_document<'a>(
     relevant_documents: &'a Vec<&'a IndexedDocument>,
     min_phrase_len: usize,
     max_phrase_len: usize,
-) -> BTreeSet<&'a [u16]> {
-    let mut phrases = BTreeSet::new();
+) -> Vec<(usize, usize)> {
+    let mut phrases = Vec::new();
     let mut start = 0;
     while start < document.len() {
         let mut query_len = min_phrase_len;
@@ -60,7 +59,7 @@ fn collect_phrases_per_document<'a>(
         }
 
         if found {
-            phrases.insert(document.get_slice(start, start + query_len - 1));
+            phrases.push((start, start + query_len - 1));
             start += query_len - 1;
         } else {
             start += 1;
@@ -89,10 +88,9 @@ mod test {
             (&doc1, doc1_relevant_docs.iter().collect::<Vec<_>>()),
             (&doc2, doc2_relevant_docs.iter().collect::<Vec<_>>()),
         ];
-        let mut phrases = collect_phrases(document_set.as_slice(), 2, 100);
-        assert_eq!(phrases.pop_first().unwrap(), &[0, 1]);
-        assert_eq!(phrases.pop_first().unwrap(), &[2, 3]);
-        assert_eq!(phrases.pop_first().unwrap(), &[4, 5, 6, 7]);
-        assert!(phrases.is_empty());
+        let phrases = collect_phrases(document_set.as_slice(), 2, 100);
+        assert_eq!(phrases.len(), 2);
+        assert_eq!(phrases[0], vec![(0, 2), (2, 4)]);
+        assert_eq!(phrases[1], vec![(0, 4)]);
     }
 }

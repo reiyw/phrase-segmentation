@@ -4,14 +4,21 @@ mod document;
 
 use std::collections::BTreeSet;
 
+use rayon::prelude::*;
+
 pub use crate::document::IndexedDocument;
 
-pub fn collect_phrases<'a, I: Iterator<Item = (&'a IndexedDocument, Vec<&'a IndexedDocument>)>>(
-    document_set: I,
+pub fn collect_phrases<'a>(
+    document_set: &'a [(&'a IndexedDocument, Vec<&'a IndexedDocument>)],
     min_phrase_len: usize,
     max_phrase_len: usize,
 ) -> BTreeSet<&'a [u16]> {
     let mut phrases = BTreeSet::new();
+    // document_set.par_iter().for_each(move |a| {
+    //     a;
+    //     phrases;
+    // });
+    // for (document, relevant_documents) in document_set.par_iter() {
     for (document, relevant_documents) in document_set {
         let mut start = 0;
         while start < document.len() {
@@ -22,7 +29,7 @@ pub fn collect_phrases<'a, I: Iterator<Item = (&'a IndexedDocument, Vec<&'a Inde
 
             let mut query = document.get_slice(start, start + query_len);
             let mut found = false;
-            'outer: for relevant_document in &relevant_documents {
+            'outer: for relevant_document in relevant_documents {
                 while relevant_document.contains(query) {
                     found = true;
 
@@ -46,6 +53,14 @@ pub fn collect_phrases<'a, I: Iterator<Item = (&'a IndexedDocument, Vec<&'a Inde
     phrases
 }
 
+// fn collect_phrases_per_document(
+//     document: &IndexedDocument,
+//     relevant_documents: Vec<&IndexedDocument>,
+//     min_phrase_len: usize,
+//     max_phrase_len: usize,
+// ) -> BTreeSet<&[u16]> {
+// }
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -66,7 +81,7 @@ mod test {
             (&doc1, doc1_relevant_docs.iter().collect::<Vec<_>>()),
             (&doc2, doc2_relevant_docs.iter().collect::<Vec<_>>()),
         ];
-        let mut phrases = collect_phrases(document_set.into_iter(), 2, 100);
+        let mut phrases = collect_phrases(document_set.as_slice(), 2, 100);
         assert_eq!(phrases.pop_first().unwrap(), &[0, 1]);
         assert_eq!(phrases.pop_first().unwrap(), &[2, 3]);
         assert_eq!(phrases.pop_first().unwrap(), &[4, 5, 6, 7]);

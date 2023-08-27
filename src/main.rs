@@ -47,8 +47,12 @@ fn main() -> Result<()> {
                 .collect::<Vec<&IndexedDocument>>()
         })
         .collect();
+    let document_set = indexed_documents
+        .iter()
+        .zip(relevant_documents)
+        .collect::<Vec<_>>();
     let phrases = collect_phrases(
-        indexed_documents.iter().zip(relevant_documents),
+        document_set.as_slice(),
         cli.min_phrase_len,
         cli.max_phrase_len,
     );

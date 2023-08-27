@@ -3,6 +3,7 @@
 mod document;
 
 use std::collections::BTreeSet;
+use std::sync::Mutex;
 
 use rayon::prelude::*;
 
@@ -13,53 +14,60 @@ pub fn collect_phrases<'a>(
     min_phrase_len: usize,
     max_phrase_len: usize,
 ) -> BTreeSet<&'a [u16]> {
+    let phrases = Mutex::new(BTreeSet::new());
+    document_set
+        .par_iter()
+        .for_each(|(document, relevant_documents)| {
+            let doc_phrases = collect_phrases_per_document(
+                document,
+                relevant_documents,
+                min_phrase_len,
+                max_phrase_len,
+            );
+            let mut lock = phrases.lock().unwrap();
+            lock.extend(doc_phrases);
+        });
+    phrases.into_inner().unwrap()
+}
+
+fn collect_phrases_per_document<'a>(
+    document: &'a IndexedDocument,
+    relevant_documents: &'a Vec<&'a IndexedDocument>,
+    min_phrase_len: usize,
+    max_phrase_len: usize,
+) -> BTreeSet<&'a [u16]> {
     let mut phrases = BTreeSet::new();
-    // document_set.par_iter().for_each(move |a| {
-    //     a;
-    //     phrases;
-    // });
-    // for (document, relevant_documents) in document_set.par_iter() {
-    for (document, relevant_documents) in document_set {
-        let mut start = 0;
-        while start < document.len() {
-            let mut query_len = min_phrase_len;
-            if start + query_len > document.len() {
-                break;
-            }
+    let mut start = 0;
+    while start < document.len() {
+        let mut query_len = min_phrase_len;
+        if start + query_len > document.len() {
+            break;
+        }
 
-            let mut query = document.get_slice(start, start + query_len);
-            let mut found = false;
-            'outer: for relevant_document in relevant_documents {
-                while relevant_document.contains(query) {
-                    found = true;
+        let mut query = document.get_slice(start, start + query_len);
+        let mut found = false;
+        'outer: for relevant_document in relevant_documents {
+            while relevant_document.contains(query) {
+                found = true;
 
-                    query_len += 1;
-                    if query_len > max_phrase_len || start + query_len > document.len() {
-                        break 'outer;
-                    }
-
-                    query = document.get_slice(start, start + query_len);
+                query_len += 1;
+                if query_len > max_phrase_len || start + query_len > document.len() {
+                    break 'outer;
                 }
-            }
 
-            if found {
-                phrases.insert(document.get_slice(start, start + query_len - 1));
-                start += query_len - 1;
-            } else {
-                start += 1;
+                query = document.get_slice(start, start + query_len);
             }
+        }
+
+        if found {
+            phrases.insert(document.get_slice(start, start + query_len - 1));
+            start += query_len - 1;
+        } else {
+            start += 1;
         }
     }
     phrases
 }
-
-// fn collect_phrases_per_document(
-//     document: &IndexedDocument,
-//     relevant_documents: Vec<&IndexedDocument>,
-//     min_phrase_len: usize,
-//     max_phrase_len: usize,
-// ) -> BTreeSet<&[u16]> {
-// }
 
 #[cfg(test)]
 mod test {
